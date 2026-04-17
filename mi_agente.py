@@ -36,50 +36,68 @@ fuera del mapa), simplemente se queda en su lugar.
 
 from entorno import Agente
 
-
 class MiAgente(Agente):
     """
-    Tu agente de navegación.
-
-    Implementa el método decidir() para que el agente
-    llegue del punto A al punto B en el grid.
+    Agente basado en utilidad final. 
+    Usa un historial para minimizar pasos y evitar entrar en bucles ("loops").
     """
 
     def __init__(self):
-        super().__init__(nombre="Mi Agente")
-        # Puedes agregar atributos aquí si los necesitas.
-        # Ejemplo:
-        #   self.pasos = 0
-        #   self.memoria = {}
+        super().__init__(nombre="Explorador de Utilidad Avanzado")
+        # Diccionario para contar cuántas veces pasamos por cada coordenada
+        self.historial_visitas = {}
 
     def al_iniciar(self):
-        """Se llama una vez al iniciar la simulación. Opcional."""
-        pass
+        """Llamado por el entorno al inicio de la corrida."""
+        self.historial_visitas = {}
 
     def decidir(self, percepcion):
+        pos_actual = percepcion['posicion']
+        # Guardamos la visita de la posición actual sumándole 1
+        self.historial_visitas[pos_actual] = self.historial_visitas.get(pos_actual, 0) + 1
         
-        """
-        Decide la siguiente acción del agente.
-        
-        Parámetros:
-            percepcion – diccionario con lo que el agente puede ver
+        direcciones_meta = percepcion['direccion_meta']
+        mejores_acciones = []
+        max_utilidad = float('-inf')
 
-        Retorna:
-            'arriba', 'abajo', 'izquierda' o 'derecha'
-        """
-        # ╔══════════════════════════════════════╗
-        # ║   ESCRIBE TU LÓGICA AQUÍ             ║
-        # ╚══════════════════════════════════════╝
+        for accion in self.ACCIONES:
+            estado_celda = percepcion[accion]
+            
+            if estado_celda is None or estado_celda == 'pared':
+                continue
 
-        # Ejemplo básico (bórralo y escribe tu propia lógica):
-        #
-        # vert, horiz = percepcion['direccion_meta']
-        #
-        # if percepcion[vert] == 'libre' or percepcion[vert] == 'meta':
-        #     return vert
-        # if percepcion[horiz] == 'libre' or percepcion[horiz] == 'meta':
-        #     return horiz
-        #
+            if estado_celda == 'meta':
+                return accion
+
+            futura_pos = self._predecir_posicion(pos_actual, accion)
+            num_visitas = self.historial_visitas.get(futura_pos, 0)
+
+            # --- MEDIDA DE UTILIDAD (MINIMIZAR PASOS) ---
+            utilidad = 100 
+            
+            if accion in direcciones_meta:
+                utilidad += 50
+            
+            # Costo: Restar puntos a la utilidad si esa celda ya fue muy visitada.
+            # Esto fuerza al agente a explorar zonas nuevas en vez de estancarse.
+            utilidad -= (num_visitas * 30)
+
+            if utilidad > max_utilidad:
+                max_utilidad = utilidad
+                mejores_acciones = [accion]
+
+        return mejores_acciones[0] if mejores_acciones else 'abajo'
+
+    def _predecir_posicion(self, pos, accion):
+        """Función auxiliar para saber a qué coordenada nos llevará un movimiento."""
+        f, c = pos
+        if accion == 'arriba': return (f - 1, c)
+        if accion == 'abajo': return (f + 1, c)
+        if accion == 'izquierda': return (f, c - 1)
+        if accion == 'derecha': return (f, c + 1)
+        return pos
+
+
         # return 'abajo'
         print('Hola decidir')
         for direccion in self.ACCIONES:
